@@ -73,7 +73,7 @@ Ordem **fixa** — passos **1–5** identificam o **alvo da revisão** (preferen
 
 ## Formato obrigatório da resposta ao utilizador
 
-Depois de executar a análise (passos **6–11** e cobertura **A–H** **internamente**), a **mensagem ao utilizador** contém **apenas** os **quatro** blocos abaixo, **nesta ordem**, com os **títulos literais** (e dois-pontos). A primeira linha visível da resposta tem de ser **`Tarefa:`** (início do primeiro bloco). **Proibido** qualquer **resumo**, **introdução** ou **contexto** antes desse primeiro bloco (ex.: localização no Jira, número do PR, repositório, data de merge, explicação de qual commit ou PR foi escolhido como alvo, síntese dos AC ou do diff). Esse contexto fica **só no raciocínio interno**. **Nada** após o último bloco.
+Depois de executar a análise (passos **6–11** e cobertura **A–I** **internamente**), a **mensagem ao utilizador** contém **apenas** os **quatro** blocos abaixo, **nesta ordem**, com os **títulos literais** (e dois-pontos). A primeira linha visível da resposta tem de ser **`Tarefa:`** (início do primeiro bloco). **Proibido** qualquer **resumo**, **introdução** ou **contexto** antes desse primeiro bloco (ex.: localização no Jira, número do PR, repositório, data de merge, explicação de qual commit ou PR foi escolhido como alvo, síntese dos AC ou do diff). Esse contexto fica **só no raciocínio interno**. **Nada** após o último bloco.
 
 ```
 Tarefa: [repetir a chave tal como o utilizador enviou no disparo, ex.: NS-721]
@@ -116,13 +116,13 @@ Alterações possíveis no código:
 - **Conclusões** formais *Aprovar / Aprovar com ressalvas / Não aprovar*, **rastreio AC** linha-a-linha, **listagens de commits/hashes** ou **diff** completo — salvo **uma citação mínima** dentro de **Alterações possíveis** quando for estritamente necessário para justificar uma sugestão.
 - Explicações sobre **como** o slash command funciona.
 
-*(A cobertura A–H e os passos 9–11 servem para **raciocínio interno**; o utilizador só vê os quatro blocos, **sem** resumo nem preâmbulo.)*
+*(A cobertura A–I e os passos 9–11 servem para **raciocínio interno**; o utilizador só vê os quatro blocos, **sem** resumo nem preâmbulo.)*
 
 ---
 
 ## Revisão de código (objetivo: qualidade, padrão, escalabilidade, QA)
 
-**Princípio:** revisão **objetiva** — alinhar com **regras e padrões do projeto**, não com gosto pessoal. Executar **6 → 11** na ordem e cumprir **integralmente** a secção **«Cobertura obrigatória — lacunas fechadas»** **no raciocínio interno**. O **único** texto enviado ao utilizador é o definido em **«Formato obrigatório da resposta ao utilizador»**.
+**Princípio:** revisão **objetiva** — alinhar com **regras e padrões do projeto**, não com gosto pessoal. Executar **6 → 11** na ordem e cumprir **integralmente** a secção **«Cobertura obrigatória — lacunas fechadas»** (incluindo **I — Anti-falsos-positivos**) **no raciocínio interno**. O **único** texto enviado ao utilizador é o definido em **«Formato obrigatório da resposta ao utilizador»**.
 
 ### 6. Obter o conteúdo a revisar + contexto da issue
 
@@ -145,7 +145,7 @@ Alterações possíveis no código:
 
 ### 9. Analisar a mudança no código
 
-- Relacionar o diff com o **baseline** do passo **8** e com as **regras obrigatórias** da secção **«Cobertura obrigatória — lacunas fechadas»** (QA, correção/edge cases, performance, segurança operacional, código agentico quando aplicável).
+- Relacionar o diff com o **baseline** do passo **8** e com as **regras obrigatórias** da secção **«Cobertura obrigatória — lacunas fechadas»** (QA, correção/edge cases, performance, segurança operacional, código agentico quando aplicável, **e anti-falsos-positivos I** antes de emitir sugestões genéricas).
 - A **lógica nova** segue o **padrão** da pasta alterada? A **escrita** (formatação, abstrações, nomes) respeita a **regra implícita** do sítio onde o código vive?
 - Identificar **riscos objetivos**: regressão em consumidores do mesmo módulo, mutações partilhadas, APIs públicas alteradas.
 
@@ -243,6 +243,17 @@ Cada bloco tem **Contexto** (porque existe), **Objetivo** (o que deve ganhar o u
   1. Se paths ou texto do diff indicarem **agent**, **MCP**, **tool call**, **workflow autónomo**, **cron**, **webhook** ou equivalente: no passo **9**, avaliar permissões, dados e superfície de ataque; achados → **Alterações possíveis**.
   2. Se o diff **não** toca esse domínio, nada a acrescentar por **H** na resposta.
 
+### I — Anti-falsos-positivos (acordo de equipa — Roboteasy Studio / depuração)
+
+- **Contexto:** Sugestões genéricas de code review podem **repetir** pontos já **decididos** entre produto, QA e desenvolvimento, ou **ignorar** contratos da stack (gerador + runtime), gerando **ruído** e retrabalho.
+- **Objetivo:** Só propor **Alterações possíveis** nestes domínios quando houver **evidência no diff**, **contradição com AC** explícitos na issue, ou **novo risco** (novo call site, regressão, política de repo).
+- **Regras obrigatórias:**
+  1. **Árvore de depuração (`PropertyTreeBuilder` — raízes «Componente» / «Projeto»):** **Não** sugerir como padrão «garantir sempre duas raízes» nem «sempre mostrar o nó Componente». Posicionamento acordado: quando `relevantVariableNames` **não** gera filhos, **omitir** a secção **Componente** e manter **Projeto** (expandido). Só levantar o tema em **Alterações possíveis** se os **critérios de aceite** da issue **exigirem** explicitamente duas secções **visíveis** nesse cenário — aí propor alinhar **implementação ou AC/testes**, não «corrigir» por suposição de UX.
+  2. **Secção «Projeto» vazia / `(0 Properties)`:** **Não** sugerir esconder ou condicionar «Projeto» por medo de pasta vazia **sem** indício no diff ou no comportamento descrito: na arquitetura atual **existem variáveis de projeto** mesmo quando o projeto não declara propriedades — «Projeto» **não** fica vazio na prática. Só sugerir ajuste se o diff ou reprodução mostrar **efetivamente** estado vazio ou contagem zero indevida.
+  3. **Testes unitários em lógica só de visualização:** **Não** listar como sugestão **obrigatória** testes para builders de árvore / **apresentação** (ex.: `PropertyTreeBuilder`) **só** por ser código novo ou «simples». Incluir testes em **Alterações possíveis** **só** quando: política explícita do repositório o exigir, houver **regra de negócio** no builder (não só montagem de nós), ou **histórico de regressão** nessa área. Caso contrário, omitir ou mencionar **opcional** apenas se o utilizador pedir foco em testabilidade.
+  4. **Null em coleções garantidas pelo gerador (`relevantVariableNames` e similares):** **Não** sugerir iteração defensiva contra `null` **só** por prudência genérica quando o **contrato** é garantido pelo **código gerado** do frontend da mesma solução e o diff **não** introduz **novos** consumidores fora desse contrato. Se o diff **adicionar** call site **não** gerado, API pública ou camada partilhada **sem** garantia documentada, aí sim avaliar null/vazio em **B**.
+  5. **Formatação de `.resx` e recursos (newline final, whitespace):** **Não** sugerir correção **manual** de newline ou formatação em `.resx` / `Messages.Designer.cs` quando a equipa usa **formatação automática do Visual Studio** e desencoraja edição manual — isso gera **ruído de diff** e pode ser revertido pelo IDE. **Exceção:** strings erradas, cultura em falta, ou chaves incorretas (conteúdo funcional), não estética de fim de ficheiro.
+
 ---
 
 ## Coerência — comando funcional (checklist de revisão do próprio `.md`)
@@ -251,7 +262,7 @@ Antes de enviar a mensagem, o agente **confirma internamente** que:
 
 - Respeitou **gates**: tarefa encontrada; **alvo** definido — **um PR** (prioridade quando aplicável) **ou** **um commit** (o **mais recente** se houver vários no fluxo por commits); diff desse alvo ou fallback local disponível.
 - A cadeia **Jira → Desenvolvimento → PR (se um) ou commits → diff no Bitbucket** foi respeitada ou a limitação foi dita.
-- Os passos **8–11** e a cobertura **A–H** foram aplicados **no raciocínio**.
+- Os passos **8–11** e a cobertura **A–I** foram aplicados **no raciocínio** (incluindo filtrar sugestões à luz de **I**).
 - A **resposta ao utilizador** contém **exatamente** os **quatro** blocos do **«Formato obrigatório da resposta ao utilizador»**, **sem** violar **«O que não incluir»**, e **sem** linhas **antes** de `Tarefa:` (nem depois do último bloco).
 - O bloco **Alterações possíveis no código** segue a **opção A** (lista numerada após os dois-pontos, **ou** linha única quando não houver sugestões).
 
